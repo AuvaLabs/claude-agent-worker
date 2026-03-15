@@ -4,7 +4,6 @@ Use your **Claude Max subscription** as a local API. No API keys, no per-token b
 
 `claude-agent-worker` is a small FastAPI server that wraps the [Claude Code CLI](https://claude.ai/claude-code) and exposes it over HTTP in the OpenAI chat completions format. Any app or script that already talks to OpenAI can point here instead and run on your Claude Max subscription for free.
 
----
 
 ## Why bother
 
@@ -19,7 +18,6 @@ Anthropic gives you two ways to use Claude programmatically:
 
 If you already pay for Claude Max and you are building personal tools, scripts, or local AI features, every call through this worker costs you nothing extra. The CLI uses the same OAuth session as claude.ai in your browser, so there are no separate credentials to manage.
 
----
 
 ## How it works
 
@@ -41,7 +39,6 @@ Claude Max via OAuth  (your subscription)
 
 The worker takes in an OpenAI-format request, converts the messages into the `Human:` / `Assistant:` format Claude expects, runs the CLI, and hands back a response shaped exactly like what the OpenAI SDK expects.
 
----
 
 ## What you can build with it
 
@@ -53,7 +50,6 @@ The worker takes in an OpenAI-format request, converts the messages into the `Hu
 - **Dev and test environments** so you stop burning API budget on non-production work
 - **Drop-in replacement** for any existing project already using the OpenAI SDK
 
----
 
 ## Requirements
 
@@ -61,7 +57,6 @@ The worker takes in an OpenAI-format request, converts the messages into the `Hu
 - A Claude Max subscription
 - Python 3.11+
 
----
 
 ## Setup
 
@@ -81,7 +76,6 @@ python server.py
 # Listening on http://localhost:8400
 ```
 
----
 
 ## Usage
 
@@ -167,7 +161,6 @@ curl http://localhost:8400/health
 }
 ```
 
----
 
 ## Models
 
@@ -179,7 +172,6 @@ curl http://localhost:8400/health
 
 You can pass either the short alias or the full model ID in the `model` field.
 
----
 
 ## Configuration
 
@@ -195,7 +187,6 @@ Set these as environment variables before starting the server.
 MAX_CONCURRENT=4 REQUEST_TIMEOUT=120 python server.py
 ```
 
----
 
 ## API reference
 
@@ -224,7 +215,6 @@ Standard OpenAI chat completions format.
 
 Supported roles: `system`, `user`, `assistant`
 
----
 
 ## Running as a service
 
@@ -256,7 +246,6 @@ sudo systemctl start claude-agent-worker
 nohup python server.py > worker.log 2>&1 &
 ```
 
----
 
 ## Limitations
 
@@ -265,7 +254,6 @@ nohup python server.py > worker.log 2>&1 &
 - **Token counts are approximate.** The usage fields in responses are word-split estimates, not exact tokenization.
 - **No persistent sessions.** Each request is stateless. Pass the full conversation history in `messages` if you need context across turns.
 
----
 
 ## License
 
