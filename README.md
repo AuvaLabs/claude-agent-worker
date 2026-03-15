@@ -1,39 +1,30 @@
 # claude-agent-worker
 
-An OpenAI-compatible API bridge that routes requests through the **Claude CLI** — so you can use your **Claude Max subscription** (OAuth, flat-rate) instead of paying per-token via the Anthropic or OpenAI APIs.
+A local API bridge that lets you use your **Claude Max subscription** programmatically — no API keys, no per-token billing.
+
+The `claude` CLI authenticates via **OAuth** (same login as claude.ai in your browser). This worker wraps it in an OpenAI-compatible HTTP interface so any app using the OpenAI SDK can point here instead.
 
 ## How it works
 
 ```
-Your app (OpenAI SDK)
-        │
-        ▼
- POST /v1/chat/completions        ← standard OpenAI format
-        │
-        ▼
-  claude-agent-worker             ← this server (FastAPI)
-        │
-        ▼
-   claude -p ...                  ← Claude CLI subprocess
-        │
-        ▼
-  Claude Max (OAuth)              ← your subscription, $0 per call
+Your app
+    │
+    ▼
+POST /v1/chat/completions
+    │
+    ▼
+claude-agent-worker  (this server)
+    │
+    ▼
+claude -p ...  (Claude CLI subprocess)
+    │
+    ▼
+Claude Max via OAuth  ← your subscription, $0 per call
 ```
-
-The `claude` CLI authenticates via **OAuth** — the same login as claude.ai in your browser. No Anthropic API key. No OpenAI key. Just your subscription.
-
-## Why
-
-| | API Key (pay-per-token) | Claude Max + this worker |
-|---|---|---|
-| Cost | ~$3–15 / 1M tokens | Flat monthly subscription |
-| Setup | Instant | One `claude login` |
-| Rate limits | Per-org token budget | Subscription limits |
-| Best for | Production / high-volume | Development / personal use |
 
 ## Requirements
 
-- [Claude Code CLI](https://claude.ai/claude-code) installed and authenticated
+- [Claude Code CLI](https://claude.ai/claude-code) installed
 - Python 3.11+
 
 ## Setup
@@ -52,18 +43,16 @@ python server.py
 
 ## Usage
 
-Point any OpenAI-compatible client at `http://localhost:8400/v1`:
-
 ```python
 from openai import OpenAI
 
 client = OpenAI(
     base_url="http://localhost:8400/v1",
-    api_key="not-needed",          # required by SDK, value ignored
+    api_key="unused",
 )
 
 response = client.chat.completions.create(
-    model="sonnet",                # sonnet | opus | haiku | full model ID
+    model="sonnet",   # sonnet | opus | haiku
     messages=[
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": "Hello!"},
@@ -89,15 +78,12 @@ for chunk in stream:
 ```bash
 curl http://localhost:8400/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{
-    "model": "sonnet",
-    "messages": [{"role": "user", "content": "Hello"}]
-  }'
+  -d '{"model": "sonnet", "messages": [{"role": "user", "content": "Hello"}]}'
 ```
 
 ## Models
 
-| Alias | Full model ID |
+| Alias | Model |
 |---|---|
 | `sonnet` *(default)* | `claude-sonnet-4-6` |
 | `opus` | `claude-opus-4-6` |
@@ -106,8 +92,6 @@ curl http://localhost:8400/v1/chat/completions \
 Full model IDs are also accepted directly.
 
 ## Configuration
-
-All settings via environment variables:
 
 | Variable | Default | Description |
 |---|---|---|
@@ -119,28 +103,11 @@ All settings via environment variables:
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/health` | Returns version and config info |
-| `POST` | `/v1/chat/completions` | OpenAI-compatible completions |
-
-## Running as a service
-
-```bash
-# systemd example
-[Unit]
-Description=Claude Agent Worker
-After=network.target
-
-[Service]
-ExecStart=/usr/bin/python3 /home/deploy/claude-worker/server.py
-Restart=on-failure
-Environment=MAX_CONCURRENT=2
-
-[Install]
-WantedBy=multi-user.target
-```
+| `GET` | `/health` | Status, version, config |
+| `POST` | `/v1/chat/completions` | Chat completions |
 
 ## Notes
 
-- The worker is intentionally **open** (no API key) — it is designed for local/trusted network use only. Do not expose port 8400 to the internet.
-- Token counts in responses are word-split approximations, not exact BPE counts.
-- `--max-turns 1` is set by default — agentic multi-step tool use is not supported in this bridge.
+- Designed for local use only — do not expose port 8400 to the internet.
+- Token counts are word-split approximations, not exact.
+- `--max-turns 1` — single-turn only, no agentic tool use.
