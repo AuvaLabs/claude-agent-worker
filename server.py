@@ -187,7 +187,7 @@ def build_cmd(prompt: str, system: str, model: str, streaming: bool) -> list[str
         "--model", model,
     ]
     if streaming:
-        cmd.append("--include-partial-messages")
+        cmd += ["--include-partial-messages", "--verbose"]
     if system:
         cmd += ["--system-prompt", system]
     return cmd
@@ -264,10 +264,14 @@ async def _stream_sse(
                     continue
 
                 event_type = event.get("type", "")
-                if event_type == "assistant":
-                    for block in event.get("message", {}).get("content", []):
-                        if block.get("type") == "text":
-                            yield f"data: {json.dumps(_sse_chunk(cid, created, model, block['text']))}\n\n"
+
+                # token-level text deltas
+                if event_type == "stream_event":
+                    inner = event.get("event", {})
+                    if inner.get("type") == "content_block_delta":
+                        delta = inner.get("delta", {})
+                        if delta.get("type") == "text_delta":
+                            yield f"data: {json.dumps(_sse_chunk(cid, created, model, delta['text']))}\n\n"
 
                 elif event_type == "result":
                     duration = int((time.monotonic() - started) * 1000)
