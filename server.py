@@ -56,7 +56,7 @@ log = logging.getLogger("claude-worker")
 # ---------------------------------------------------------------------------
 
 CLAUDE_BIN = os.environ.get("CLAUDE_BIN", "claude")
-MAX_CONCURRENT = int(os.environ.get("MAX_CONCURRENT", "2"))
+MAX_CONCURRENT = int(os.environ.get("MAX_CONCURRENT", "4"))
 MAX_QUEUE_SIZE = int(os.environ.get("MAX_QUEUE_SIZE", "20"))
 REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT", "300"))
 CLAUDE_ACCOUNTS_RAW = os.environ.get("CLAUDE_ACCOUNTS", "")

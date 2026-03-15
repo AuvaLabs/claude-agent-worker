@@ -240,7 +240,7 @@ All settings via environment variables.
 |---|---|---|
 | `CLAUDE_ACCOUNTS` | unset | Comma-separated list of HOME dirs for multi-account pool. If unset, uses current user. |
 | `CLAUDE_BIN` | `claude` | Path to the Claude CLI binary |
-| `MAX_CONCURRENT` | `2` | Max parallel requests per account |
+| `MAX_CONCURRENT` | `4` | Max parallel requests per account |
 | `MAX_QUEUE_SIZE` | `20` | Max requests waiting in queue before returning 429 |
 | `REQUEST_TIMEOUT` | `300` | Seconds before a request is killed |
 | `LOG_DIR` | `logs` | Directory where log files are written |
@@ -286,7 +286,7 @@ After=network.target
 ExecStart=/usr/bin/python3 /home/deploy/claude-agent-worker/server.py
 Restart=on-failure
 Environment=CLAUDE_ACCOUNTS=/opt/accounts/u1,/opt/accounts/u2,/opt/accounts/u3
-Environment=MAX_CONCURRENT=2
+Environment=MAX_CONCURRENT=4
 Environment=MAX_QUEUE_SIZE=20
 Environment=REQUEST_TIMEOUT=300
 Environment=LOG_DIR=/var/log/claude-worker
