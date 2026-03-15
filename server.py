@@ -49,7 +49,7 @@ stream_handler = logging.StreamHandler()
 stream_handler.setFormatter(formatter)
 
 logging.basicConfig(level=logging.INFO, handlers=[file_handler, stream_handler])
-log = logging.getLogger("claude-worker")
+log = logging.getLogger("claude-bridge")
 
 # ---------------------------------------------------------------------------
 # Config
@@ -134,14 +134,14 @@ pool: AccountPool = None  # initialised in startup
 # App
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="Claude Code Worker")
+app = FastAPI(title="Claude Bridge")
 
 
 @app.on_event("startup")
 async def startup():
     global pool
     pool = _build_pool()
-    log.info("claude-worker started — port 8400, timeout %ds, queue limit %d", REQUEST_TIMEOUT, MAX_QUEUE_SIZE)
+    log.info("claude-bridge started — port 8400, timeout %ds, queue limit %d", REQUEST_TIMEOUT, MAX_QUEUE_SIZE)
 
 
 # ---------------------------------------------------------------------------
@@ -203,7 +203,7 @@ def make_env(account: Account) -> dict:
 def _sse_chunk(cid: str, created: int, model: str, text: str) -> dict:
     return {
         "id": cid, "object": "chat.completion.chunk", "created": created,
-        "model": f"claude-worker-{model}",
+        "model": f"claude-bridge-{model}",
         "choices": [{"index": 0, "delta": {"role": "assistant", "content": text}, "finish_reason": None}],
     }
 
@@ -211,7 +211,7 @@ def _sse_chunk(cid: str, created: int, model: str, text: str) -> dict:
 def _sse_stop_chunk(cid: str, created: int, model: str) -> dict:
     return {
         "id": cid, "object": "chat.completion.chunk", "created": created,
-        "model": f"claude-worker-{model}",
+        "model": f"claude-bridge-{model}",
         "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
     }
 
@@ -390,7 +390,7 @@ async def chat_completions(request: Request):
         "id": f"chatcmpl-{uuid.uuid4().hex[:12]}",
         "object": "chat.completion",
         "created": int(time.time()),
-        "model": f"claude-worker-{model}",
+        "model": f"claude-bridge-{model}",
         "choices": [{"index": 0, "message": {"role": "assistant", "content": content}, "finish_reason": "stop"}],
         "usage": {
             "prompt_tokens": prompt_tokens,

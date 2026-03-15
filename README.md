@@ -1,8 +1,8 @@
-# claude-agent-worker
+# claude-bridge
 
 Use your **Claude Max subscription** as a local API. No API keys, no per-token billing, no surprises at the end of the month.
 
-`claude-agent-worker` is a small FastAPI server that wraps the [Claude Code CLI](https://claude.ai/claude-code) and exposes it over HTTP in the OpenAI chat completions format. Any app or script that already talks to OpenAI can point here instead and run on your Claude Max subscription for free.
+`claude-bridge` is a small FastAPI server that wraps the [Claude Code CLI](https://claude.ai/claude-code) and exposes it over HTTP in the OpenAI chat completions format. Any app or script that already talks to OpenAI can point here instead and run on your Claude Max subscription for free.
 
 **Starting the server**
 
@@ -34,7 +34,7 @@ Your app
 POST /v1/chat/completions
     |
     v
-claude-agent-worker  (this server)
+claude-bridge  (this server)
     |
     v
 Account pool  (least-active-connections routing)
@@ -74,8 +74,8 @@ The worker takes in an OpenAI-format request, picks the account with the fewest 
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/AuvaLabs/claude-agent-worker.git
-cd claude-agent-worker
+git clone https://github.com/AuvaLabs/claude-bridge.git
+cd claude-bridge
 
 # 2. Install dependencies
 pip install -r requirements.txt
@@ -249,7 +249,7 @@ All settings via environment variables.
 CLAUDE_ACCOUNTS=/opt/accounts/u1,/opt/accounts/u2 \
   MAX_CONCURRENT=3 \
   MAX_QUEUE_SIZE=50 \
-  LOG_DIR=/var/log/claude-worker \
+  LOG_DIR=/var/log/claude-bridge \
   python3 server.py
 ```
 
@@ -279,25 +279,25 @@ Returns `429` when the queue is full rather than hanging the caller indefinitely
 
 ```ini
 [Unit]
-Description=Claude Agent Worker
+Description=Claude Bridge
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/python3 /home/deploy/claude-agent-worker/server.py
+ExecStart=/usr/bin/python3 /home/deploy/claude-bridge/server.py
 Restart=on-failure
 Environment=CLAUDE_ACCOUNTS=/opt/accounts/u1,/opt/accounts/u2,/opt/accounts/u3
 Environment=MAX_CONCURRENT=4
 Environment=MAX_QUEUE_SIZE=20
 Environment=REQUEST_TIMEOUT=300
-Environment=LOG_DIR=/var/log/claude-worker
+Environment=LOG_DIR=/var/log/claude-bridge
 
 [Install]
 WantedBy=multi-user.target
 ```
 
 ```bash
-sudo systemctl enable claude-agent-worker
-sudo systemctl start claude-agent-worker
+sudo systemctl enable claude-bridge
+sudo systemctl start claude-bridge
 ```
 
 ### Background process
