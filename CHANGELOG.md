@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.4.0
+
+**Streaming fix**
+
+- Fixed streaming completely broken due to missing `--verbose` flag on `stream-json` output format
+- Updated event parsing to correctly read `stream_event.content_block_delta` text deltas instead of the wrong `assistant` event type
+- Streaming now delivers tokens incrementally as expected
+
+**Concurrency increase**
+
+- Raised default `MAX_CONCURRENT` from 2 to 4 per account for better throughput when running alongside other tools
+
 ## v0.3.0
 
 **Multi-account pool with load balancing**
