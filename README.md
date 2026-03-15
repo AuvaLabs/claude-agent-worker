@@ -1,6 +1,6 @@
 # claude-agent-worker
 
-Use your **Claude Max subscription** as a local API. No API keys, no per-token billing, no surprises at the end of the month.
+Use your **Claude Pro/Max subscription** as a local API. No API keys, no per-token billing, no surprises at the end of the month.
 
 `claude-agent-worker` is a small FastAPI server that wraps the [Claude Code CLI](https://claude.ai/claude-code) and exposes it over HTTP in the OpenAI chat completions format. Any app or script that already talks to OpenAI can point here instead and run on your Claude Max subscription for free.
 
