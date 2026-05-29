@@ -152,23 +152,81 @@ def resolve_model(model: str) -> str:
     return MODEL_ALIASES.get(model, DEFAULT_MODEL)
 
 
-def extract_text(content: str | list) -> str:
+import base64 as _base64
+import tempfile as _tempfile
+
+# Temp dir for image attachments extracted from OpenAI-format requests
+_BRIDGE_IMAGE_DIR = os.environ.get("BRIDGE_IMAGE_DIR", "/tmp/claude_bridge_images")
+os.makedirs(_BRIDGE_IMAGE_DIR, exist_ok=True)
+
+
+def _save_data_url_image(data_url: str, req_id: str, idx: int) -> str | None:
+    """Save a base64 data URL image to disk; return absolute path."""
+    if not data_url.startswith("data:"):
+        return None
+    try:
+        meta, b64 = data_url.split(",", 1)
+        ext = "png"
+        if "image/jpeg" in meta or "image/jpg" in meta:
+            ext = "jpg"
+        elif "image/webp" in meta:
+            ext = "webp"
+        elif "image/gif" in meta:
+            ext = "gif"
+        path = os.path.join(_BRIDGE_IMAGE_DIR, f"req_{req_id}_{idx}.{ext}")
+        with open(path, "wb") as f:
+            f.write(_base64.b64decode(b64))
+        return path
+    except Exception as e:
+        log.warning("failed to decode image: %s", e)
+        return None
+
+
+def extract_text_and_images(content: str | list, req_id: str = "0", start_idx: int = 0) -> tuple[str, list[str]]:
+    """Extract text + image file paths from an OpenAI-format content array."""
     if isinstance(content, str):
-        return content
-    return " ".join(
-        part.get("text", "")
-        for part in content
-        if isinstance(part, dict) and part.get("type") == "text"
-    )
+        return content, []
+    text_parts: list[str] = []
+    image_paths: list[str] = []
+    idx = start_idx
+    for part in content:
+        if not isinstance(part, dict):
+            continue
+        ptype = part.get("type")
+        if ptype == "text":
+            text_parts.append(part.get("text", ""))
+        elif ptype == "image_url":
+            url = part.get("image_url", {}).get("url", "") if isinstance(part.get("image_url"), dict) else part.get("image_url", "")
+            saved = _save_data_url_image(url, req_id, idx)
+            if saved:
+                image_paths.append(saved)
+                idx += 1
+        elif ptype == "image":
+            src = part.get("source", {})
+            if src.get("type") == "base64":
+                data_url = f"data:image/{src.get('media_type','png').replace('image/','')};base64,{src.get('data','')}"
+                saved = _save_data_url_image(data_url, req_id, idx)
+                if saved:
+                    image_paths.append(saved)
+                    idx += 1
+    return " ".join(text_parts), image_paths
 
 
-def build_prompt_and_system(messages: list[dict]) -> tuple[str, str]:
+def extract_text(content: str | list) -> str:
+    """Legacy text-only extractor (kept for compat)."""
+    text, _ = extract_text_and_images(content)
+    return text
+
+
+def build_prompt_and_system(messages: list[dict], req_id: str = "0") -> tuple[str, str]:
     system_parts: list[str] = []
     prompt_parts: list[str] = []
+    all_images: list[str] = []
 
     for msg in messages:
         role = msg.get("role", "user")
-        text = extract_text(msg.get("content", ""))
+        text, images = extract_text_and_images(msg.get("content", ""), req_id, len(all_images))
+        all_images.extend(images)
         if role == "system":
             system_parts.append(text)
         elif role == "user":
@@ -176,16 +234,29 @@ def build_prompt_and_system(messages: list[dict]) -> tuple[str, str]:
         elif role == "assistant":
             prompt_parts.append(f"Assistant: {text}")
 
-    return "\n\n".join(prompt_parts), "\n\n".join(system_parts)
+    prompt = "\n\n".join(prompt_parts)
+    if all_images:
+        # Prepend an instruction so Claude reads the attached images using the Read tool.
+        img_instructions = "\n".join(f"Use the Read tool to view this attached image: {p}" for p in all_images)
+        prompt = img_instructions + "\n\n" + prompt
+
+    return prompt, "\n\n".join(system_parts)
 
 
 def build_cmd(prompt: str, system: str, model: str, streaming: bool) -> list[str]:
+    # If the prompt contains an image-read instruction (vision request), allow
+    # up to 5 turns + bypass permissions + add the image dir to Read scope so
+    # Claude can Read the attached image(s) and respond.
+    has_images = "Use the Read tool to view this attached image" in prompt
+    max_turns = "5" if has_images else "1"
     cmd = [
         CLAUDE_BIN, "-p", prompt,
         "--output-format", "stream-json" if streaming else "json",
-        "--max-turns", "1",
+        "--max-turns", max_turns,
         "--model", model,
     ]
+    if has_images:
+        cmd += ["--add-dir", _BRIDGE_IMAGE_DIR, "--permission-mode", "bypassPermissions"]
     if streaming:
         cmd += ["--include-partial-messages", "--verbose"]
     if system:
@@ -325,7 +396,7 @@ async def chat_completions(request: Request):
     stream: bool = body.get("stream", False)
     request_id = uuid.uuid4().hex[:8]
 
-    prompt, system = build_prompt_and_system(messages)
+    prompt, system = build_prompt_and_system(messages, req_id=request_id)
     account = pool.pick()
 
     log.info("req=%s acct=%s model=%s stream=%s prompt_chars=%d", request_id, account.id, model, stream, len(prompt))
